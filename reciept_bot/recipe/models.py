@@ -9,6 +9,7 @@ class Recipe(models.Model):
     ingredients = models.JSONField('Ингридиенты', null=False)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     vegan_recipe = models.BooleanField(verbose_name='Веганский рецепт')
+    category = models.ForeignKey('Categories', on_delete=models.CASCADE, default=1)
 
     def __str__(self):
         return f'{self.title} {self.ingredients}{self.price}'
@@ -26,6 +27,11 @@ class Subscription(models.Model):
     subscription_is_active = models.BooleanField(verbose_name='Подписка')
     subscription_duration = models.DateTimeField(verbose_name='Длительность подписки', auto_now=False)
     subscription_price = models.DecimalField(max_digits=10, decimal_places=2)
+
+
+class Categories(models.Model):
+    category_id = models.AutoField(primary_key=True)
+    category = models.CharField('Категория рецепта', max_length=20)
 
 
 class LikeDislike(models.Model):
