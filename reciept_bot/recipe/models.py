@@ -5,11 +5,12 @@ class Recipe(models.Model):
     recipe_id = models.AutoField(primary_key=True)
     title = models.CharField('Название рецепта', max_length=25, null=False)
     image = models.ImageField('Изображение', upload_to='images/', null=True)
-    cooking_time = models.TimeField('Время приготовления', null=True)
+    cooking_time = models.CharField('Время приготовления', null=True)
+    description = models.CharField('Описание приготовления', max_length=500)
     ingredients = models.JSONField('Ингридиенты', null=False)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     vegan_recipe = models.BooleanField(verbose_name='Веганский рецепт')
-    category = models.ForeignKey('Categories', on_delete=models.CASCADE, default=1)
+    category = models.ForeignKey('Categories', on_delete=models.CASCADE)
 
     def __str__(self):
         return f'{self.title} {self.ingredients}{self.price}'
