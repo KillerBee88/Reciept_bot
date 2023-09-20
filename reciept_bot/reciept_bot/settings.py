@@ -55,7 +55,10 @@ TEMPLATES = [
 WSGI_APPLICATION = 'reciept_bot.wsgi.application'
 
 DATABASES = {
-    'default': dj_database_url.parse(env('DATABASE_URL'))
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 }
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -81,6 +84,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-STATIC_URL = 'static/'
+STATIC_URL = "/static/"
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
