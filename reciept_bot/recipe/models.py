@@ -3,9 +3,9 @@ from django.db import models
 
 class Recipe(models.Model):
     recipe_id = models.AutoField(primary_key=True)
-    title = models.CharField('Название рецепта', max_length=25, null=False)
+    title = models.CharField('Название рецепта', max_length=255, null=False)
     image = models.ImageField('Изображение', upload_to='images/', null=True)
-    cooking_time = models.CharField('Время приготовления', null=True)
+    cooking_time = models.CharField('Время приготовления', max_length=100, null=True)
     description = models.CharField('Описание приготовления', max_length=500)
     ingredients = models.JSONField('Ингридиенты', null=False)
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -19,14 +19,18 @@ class Recipe(models.Model):
 class User(models.Model):
     user_id = models.AutoField(primary_key=True)
     name = models.CharField('Имя пользователя', max_length=20,  null=False)
-    subscription = models.ForeignKey('Subscription', on_delete=models.CASCADE, related_name='user_subscriptions')
-    email = models.EmailField('Адрес электронной почты', max_length=255, unique=True)
+    subscription = models.ForeignKey(
+        'Subscription', on_delete=models.CASCADE, related_name='user_subscriptions')
+    email = models.EmailField(
+        'Адрес электронной почты', max_length=255, unique=True)
 
 
 class Subscription(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='subscriptions')
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='subscriptions')
     subscription_is_active = models.BooleanField(verbose_name='Подписка')
-    subscription_duration = models.DateTimeField(verbose_name='Длительность подписки', auto_now=False)
+    subscription_duration = models.DateTimeField(
+        verbose_name='Длительность подписки', auto_now=False)
     subscription_price = models.DecimalField(max_digits=10, decimal_places=2)
 
 
