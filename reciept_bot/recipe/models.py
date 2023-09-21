@@ -3,42 +3,74 @@ from django.db import models
 
 class Recipe(models.Model):
     recipe_id = models.AutoField(primary_key=True)
-    title = models.CharField('Название рецепта', max_length=25, null=False)
+    title = models.CharField('Название рецепта', max_length=50, null=False)
     image = models.ImageField('Изображение', upload_to='images/', null=True)
-    cooking_time = models.CharField('Время приготовления', null=True)
-    description = models.CharField('Описание приготовления', max_length=500)
-    ingredients = models.JSONField('Ингридиенты', null=False)
+    cooking_time = models.IntegerField('Время приготовления в минутах', null=True)
+    description = models.TextField('Способ приготовления', max_length=3000)
+    ingredients = models.TextField('Ингридиенты', max_length=500)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     vegan_recipe = models.BooleanField(verbose_name='Веганский рецепт')
     category = models.ForeignKey('Categories', on_delete=models.CASCADE)
 
     def __str__(self):
-        return f'{self.title} {self.ingredients}{self.price}'
+        return self.title
+
+    class Meta:
+        verbose_name = "Рецепт"
+        verbose_name_plural = "Рецепты"
 
 
-class User(models.Model):
-    user_id = models.AutoField(primary_key=True)
-    name = models.CharField('Имя пользователя', max_length=20,  null=False)
-    subscription = models.ForeignKey('Subscription', on_delete=models.CASCADE, related_name='user_subscriptions')
-    email = models.EmailField('Адрес электронной почты', max_length=255, unique=True)
+class Client(models.Model):
+    tg_id = models.IntegerField(verbose_name="ID пользователя")
+    username = models.CharField(max_length=200, verbose_name="Имя пользователя")
+    name = models.CharField('Имя в тг', max_length=20, default='Клиент')
+
+    def __str__(self):
+        return self.username
+
+    class Meta:
+        verbose_name = "Клиент"
+        verbose_name_plural = "Клиенты"
 
 
 class Subscription(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='subscriptions')
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='subscriptions')
+    subscription_date = models.DateTimeField(verbose_name='Дата подписки', default=None)
     subscription_is_active = models.BooleanField(verbose_name='Подписка')
     subscription_duration = models.DateTimeField(verbose_name='Длительность подписки', auto_now=False)
     subscription_price = models.DecimalField(max_digits=10, decimal_places=2)
 
+    class Meta:
+        verbose_name = "Подписка"
+        verbose_name_plural = "Подписки"
+
 
 class Categories(models.Model):
     category_id = models.AutoField(primary_key=True)
-    category = models.CharField('Категория рецепта', max_length=20)
+    category = models.CharField(verbose_name='Категория рецепта', max_length=20)
+
+    def __str__(self):
+        return self.category
+
+    class Meta:
+        verbose_name = 'Категория'
+        verbose_name_plural = 'Категории'
 
 
 class LikeDislike(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    client = models.ForeignKey(Client, on_delete=models.CASCADE)
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
-    action = models.BooleanField(verbose_name='Действие пользователя')
+    action = models.BooleanField(verbose_name='Действие пользователя', default=None)
 
     class Meta:
-        unique_together = ['user', 'recipe', 'action']
+        unique_together = ['client', 'recipe', 'action']
+
+
+class UserCategoryView(models.Model):
+    user = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='category_views')
+    category = models.ForeignKey(Categories, on_delete=models.CASCADE)
+    views_left = models.IntegerField(default=3)
+    date = models.DateField(auto_now=True)
+
+    class Meta:
+        unique_together = ['user', 'category', 'date']
