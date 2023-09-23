@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db import models
 
 
@@ -21,9 +23,10 @@ class Recipe(models.Model):
 
 
 class Client(models.Model):
-    tg_id = models.IntegerField(verbose_name="ID пользователя")
-    username = models.CharField(max_length=200, verbose_name="Имя пользователя")
+    tg_id = models.BigIntegerField(verbose_name="ID пользователя")
+    username = models.CharField(max_length=200, verbose_name="Username пользователя")
     name = models.CharField('Имя в тг', max_length=20, default='Клиент')
+    vegetarian = models.BooleanField('Травоядное', default=False)
 
     def __str__(self):
         return self.username
@@ -35,10 +38,10 @@ class Client(models.Model):
 
 class Subscription(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='subscriptions')
-    subscription_date = models.DateTimeField(verbose_name='Дата подписки', default=None)
-    subscription_is_active = models.BooleanField(verbose_name='Подписка')
-    subscription_duration = models.DateTimeField(verbose_name='Длительность подписки', auto_now=False)
-    subscription_price = models.DecimalField(max_digits=10, decimal_places=2)
+    subscription_date = models.DateTimeField(verbose_name='Дата подписки', auto_now=True)
+    subscription_is_active = models.BooleanField(verbose_name='Подписка', default=False)
+    subscription_duration = models.DurationField(verbose_name='Длительность подписки', default=timedelta(days=0))
+    subscription_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     class Meta:
         verbose_name = "Подписка"
@@ -66,11 +69,10 @@ class LikeDislike(models.Model):
         unique_together = ['client', 'recipe', 'action']
 
 
-class UserCategoryView(models.Model):
+class UserLimitView(models.Model):
     user = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='category_views')
-    category = models.ForeignKey(Categories, on_delete=models.CASCADE)
     views_left = models.IntegerField(default=3)
     date = models.DateField(auto_now=True)
 
     class Meta:
-        unique_together = ['user', 'category', 'date']
+        unique_together = ['user', 'date']
