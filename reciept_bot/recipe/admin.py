@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Recipe, Subscription, Categories, Client, LikeDislike, UserCategoryView
+from .models import Recipe, Subscription, Categories, Client, LikeDislike, UserLimitView
 
 
 @admin.register(Recipe)
@@ -24,7 +24,7 @@ class CategoriesAdmin(admin.ModelAdmin):
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ('tg_id', 'username', 'name')
+    list_display = ('tg_id', 'username', 'name', 'vegetarian')
 
 
 @admin.register(LikeDislike)
@@ -32,9 +32,9 @@ class LikeDislikeAdmin(admin.ModelAdmin):
     list_display = ('client', 'recipe', 'action')
 
 
-@admin.register(UserCategoryView)
+@admin.register(UserLimitView)
 class UserCategoryViewAdmin(admin.ModelAdmin):
-    list_display = ('user', 'category', 'views_left', 'date')
+    list_display = ('user', 'views_left', 'date')
 
 
 
