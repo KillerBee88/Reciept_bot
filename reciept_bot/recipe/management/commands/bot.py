@@ -6,8 +6,11 @@ from django.utils import timezone
 from decimal import Decimal
 from reciept_bot.settings import TELEGRAM_TOKEN
 from telebot import TeleBot
-from telebot.types import KeyboardButton, ReplyKeyboardMarkup
+from telebot.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 from recipe.models import Recipe, Subscription, Categories, Client, LikeDislike, UserLimitView
+from io import BytesIO
+import json
+
 
 bot = TeleBot(TELEGRAM_TOKEN, threaded=False)
 
@@ -71,7 +74,7 @@ def get_profile_info(message):
     bot.send_message(message.chat.id, profile_msg, reply_markup=kb_profile)
 
 
-@bot.message_handler(func=lambda message:message.text == 'Включить режим "Травоядный"')
+@bot.message_handler(func=lambda message: message.text == 'Включить режим "Травоядный"')
 def handler_activate_killer_mode(message):
     client = Client.objects.get(tg_id=message.from_user.id)
     client.vegetarian = True
@@ -80,7 +83,7 @@ def handler_activate_killer_mode(message):
     bot.send_message(message.chat.id, 'Режим "асасин" активирован', reply_markup=kb_main)
 
 
-@bot.message_handler(func=lambda message:message.text == 'Выключить режим "Травоядный"')
+@bot.message_handler(func=lambda message: message.text == 'Выключить режим "Травоядный"')
 def handler_deactivate_killer_mode(message):
     client = Client.objects.get(tg_id=message.from_user.id)
     client.vegetarian = False
@@ -91,8 +94,77 @@ def handler_deactivate_killer_mode(message):
 
 @bot.message_handler(func=lambda message: message.text == 'Мои топовые рецепты 🧡')
 def handler_get_my_top_recipes(message):
+    kb_main = get_main_menu_kb()
     client = Client.objects.get(tg_id=message.from_user.id)
     top_recipes = LikeDislike.objects.filter(client=client)
+    if top_recipes.exists():
+        recipes = [like.recipe for like in top_recipes]
+        page = 1
+        count = len(recipes)
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton(text='Скрыть', callback_data='unseen'))
+        markup.add(InlineKeyboardButton(text=f'{page}/{count}', callback_data=f' '),
+                   InlineKeyboardButton(text=f'Вперёд --->', callback_data=f'{{"method": "pagination",'
+                                                                           f'"NumberPage": {page+1}, '
+                                                                           f'"CountPage": {count}}}'
+    ))
+        bot.send_message(message.from_user.id, f'<b>{recipes[page-1].title}</b>\n\n'
+                                               f'Время приготовления:\n{recipes[page-1].cooking_time} минут\n\n'
+                                               f'Способ приготовления:\n{recipes[page-1].description}\n\n'
+                                               f'Ингридиенты:\n{recipes[page-1].ingredients}\n\n'
+                                               f'Стоимость ингридиентов:\n{recipes[page-1].price} тугриков',
+
+                         reply_markup=markup, parse_mode='HTML')
+    else:
+        bot.send_message(message.from_user.id, 'Извините, у вас отсутствуют топ рецепты', reply_markup=kb_main)
+
+
+@bot.callback_query_handler(func=lambda call: True)
+def callback_query(call):
+    client = Client.objects.get(tg_id=call.from_user.id)
+    top_recipes = LikeDislike.objects.filter(client=client)
+    recipes = [like.recipe for like in top_recipes]
+    req = call.data.split('_')
+    if req[0] == 'unseen':
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+    elif 'pagination' in req[0]:
+        json_string = json.loads(req[0])
+        count = json_string['CountPage']
+        page = json_string['NumberPage']
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton(text='Скрыть', callback_data='unseen'))
+        if page == 1:
+            markup.add(
+                InlineKeyboardButton(text=f'{page}/{count}', callback_data=f' '),
+                InlineKeyboardButton(text=f'Вперёд --->',
+                                     callback_data=f'{{"method":"pagination","NumberPage":{page + 1},'
+                                                   f'"CountPage":{count}}}')
+            )
+        elif page == count:
+            markup.add(InlineKeyboardButton(text=f'<--- Назад',
+                                            callback_data=f'{{"method":"pagination","NumberPage":{page - 1},'
+                                                          f'"CountPage": {count}}}'
+),
+
+                       InlineKeyboardButton(text=f'{page}/{count}', callback_data=f' '))
+        else:
+            markup.add(InlineKeyboardButton(text=f'<--- Назад',
+                                            callback_data=f'{{"method":"pagination","NumberPage":{page - 1},'
+                                                          f'"CountPage": {count}}}'),
+                       InlineKeyboardButton(text=f'{page}/{count}', callback_data=f' '),
+                       InlineKeyboardButton(text=f'Вперёд --->',
+                                            callback_data=f'{{"method":"pagination","NumberPage":{page + 1},'
+                                                          f'"CountPage":{count}}}'))
+        bot.edit_message_text(f'<b>{recipes[page-1].title}</b>\n\n'
+                              f'Время приготовления:\n{recipes[page-1].cooking_time} минут\n\n'
+                              f'Способ приготовления:\n{recipes[page-1].description}\n\n'
+                              f'Ингридиенты:\n{recipes[page-1].ingredients}\n\n'
+                              f'Стоимость ингридиентов:\n{recipes[page-1].price} тугриков',
+
+                              reply_markup=markup,
+                              parse_mode='HTML',
+                              chat_id=call.message.chat.id,
+                              message_id=call.message.message_id)
 
 
 @bot.message_handler(func=lambda message: message.text == 'Приобрести подписку' or message.text == 'Продлить подписку')
@@ -154,6 +226,17 @@ def back_to_main_menu(message):
     bot.send_message(message.chat.id, main_menu_message, reply_markup=kb_main_menu)
 
 
+@bot.message_handler(func=lambda message: message.text.startswith('Скачать рецепт'))
+def handler_load_recipe(message):
+    recipe_title = message.text.split('Скачать рецепт "')[1].split('"')[0]
+    ingredients = Recipe.objects.get(title=recipe_title).ingredients
+    ingredients_txt_file = BytesIO(ingredients.encode('utf-8'))
+    ingredients_txt_file.name = 'ingredients.txt'
+    kb = get_main_menu_kb()
+    bot.send_document(message.chat.id, ingredients_txt_file, caption=f'Ваши ингридиенты для '
+                                                                     f'{recipe_title} в формате txt', reply_markup=kb)
+
+
 @bot.message_handler(func=lambda message: message.text.startswith('Получить ингредиенты для'))
 def handle_get_ingredients(message):
     recipe_title = message.text.split('Получить ингредиенты для "')[1].split('"')[0]
@@ -189,7 +272,7 @@ def handle_recipe_category(message):
     client = Client.objects.get(tg_id=message.from_user.id)
     subscription_duration = Subscription.objects.get(client=client).subscription_duration
     update_subscription_time(subscription_duration, client)
-    get_recipe(bot, message, message.text)
+    get_recipe(bot, message.chat.id, message.text)
 
 
 def format_duration(duration):
@@ -200,9 +283,9 @@ def format_duration(duration):
     return formatted_duration
 
 
-def get_random_recipe(category_name):
+def get_random_recipe(category_name, vegan):
     category = Categories.objects.get(category=category_name)
-    recipes = Recipe.objects.filter(category=category)
+    recipes = Recipe.objects.filter(category=category, vegan_recipe=vegan)
     recipe = random.choice(recipes)
     cooking_time = f'Время приготовления: {recipe.cooking_time} минут'
     descr = f'Способ приготовления:\n{recipe.description}'
@@ -211,11 +294,12 @@ def get_random_recipe(category_name):
 
 def get_recipe(bot, chat_id, category):
     client = Client.objects.get(tg_id=chat_id)
+    vegan = client.vegetarian
     subscription_active = Subscription.objects.get(client=client).subscription_is_active
     limit_view = UserLimitView.objects.get(user=client)
 
     if subscription_active or not subscription_active and limit_view.views_left > 0:
-        recipe, cooking_time, descr = get_random_recipe(category)
+        recipe, cooking_time, descr = get_random_recipe(category, vegan)
         kb_additional_info = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
         kb_add_info_btn = (
             KeyboardButton(text=f'Получить ингредиенты для "{recipe.title}"'),
@@ -243,7 +327,7 @@ def get_recipe(bot, chat_id, category):
         kb_buy_subscription.add(*kb_buy_subscription_btn)
 
         bot.send_message(chat_id, 'Извините, но бесплатные показы для вас закончились,\nчтобы продолжить '
-                                          'приобретите подписку', reply_markup=kb_buy_subscription)
+                                  'приобретите подписку', reply_markup=kb_buy_subscription)
 
 
 def get_main_menu_kb():
