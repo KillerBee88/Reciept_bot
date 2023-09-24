@@ -63,7 +63,7 @@ def get_profile_info(message):
                       f'У вас осталось {view_limit.views_left} просмотр(а)\n' \
                       f'Нажмите на кнопу "Приобрести подписку" для ее приобретения'
 
-        kb_profile = ReplyKeyboardMarkup()
+        kb_profile = ReplyKeyboardMarkup(resize_keyboard=True)
         kb_profile_btn = [
             KeyboardButton(text='Приобрести подписку'),
             KeyboardButton(text='Включить режим "Травоядный"'),
