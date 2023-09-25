@@ -154,3 +154,6 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+/reciept_bot/recipe/migrations/
+/recipe/migrations/
